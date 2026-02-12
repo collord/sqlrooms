@@ -47,10 +47,16 @@ export const CesiumEntityLayer: React.FC<CesiumEntityLayerProps> = ({
   const {sqlQuery} = layerConfig;
 
   // Execute SQL query using vega pattern
+  // Note: Query will fail if table doesn't exist yet, but that's expected during data loading
   const {data, isLoading, error} = useSql<Record<string, any>>({
     query: sqlQuery ?? '',
     enabled: Boolean(sqlQuery),
   });
+
+  // Don't log errors during loading - tables may not exist yet
+  if (error && !isLoading) {
+    console.debug(`CesiumEntityLayer[${layerConfig.id}]: Query error (may be temporary during data load):`, error.message);
+  }
 
   // Convert Arrow table rows to entity descriptors
   const entities = useSqlToCesiumEntities(data?.toArray() ?? [], layerConfig);

@@ -30,15 +30,15 @@ cesiumConfig.cesium.layers = [
     visible: true,
     sqlQuery: `
       SELECT
-        latitude,
-        longitude,
-        depth AS altitude,
-        time AS timestamp,
-        mag AS size,
-        place AS label
+        Latitude AS latitude,
+        Longitude AS longitude,
+        Depth AS altitude,
+        DateTime AS timestamp,
+        Magnitude AS size,
+        ID AS label
       FROM earthquakes
-      WHERE mag > 4.0
-      ORDER BY time
+      WHERE Magnitude > 4.0
+      ORDER BY DateTime
     `,
     columnMapping: {
       longitude: 'longitude',
