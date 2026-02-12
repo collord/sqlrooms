@@ -1,0 +1,160 @@
+/**
+ * Resium Viewer wrapper with lifecycle management and store synchronization.
+ * Core component that manages the Cesium viewer instance.
+ */
+
+import React, {useRef, useEffect, useMemo} from 'react';
+import {Viewer, Clock, CesiumComponentRef} from 'resium';
+import {
+  Viewer as CesiumViewer,
+  Cartesian3,
+  JulianDate,
+  ClockRange,
+  SceneMode,
+} from 'cesium';
+import {useStoreWithCesium} from '../cesium-slice';
+import {CesiumEntityLayer} from './CesiumEntityLayer';
+import {useClockSync} from '../hooks/useClockSync';
+
+// Map config enum strings to Cesium constants
+const CLOCK_RANGE_MAP = {
+  UNBOUNDED: ClockRange.UNBOUNDED,
+  CLAMPED: ClockRange.CLAMPED,
+  LOOP_STOP: ClockRange.LOOP_STOP,
+} as const;
+
+const SCENE_MODE_MAP = {
+  SCENE3D: SceneMode.SCENE3D,
+  SCENE2D: SceneMode.SCENE2D,
+  COLUMBUS_VIEW: SceneMode.COLUMBUS_VIEW,
+} as const;
+
+/**
+ * Wraps Resium Viewer component with SQLRooms lifecycle management.
+ *
+ * **Lifecycle Pattern** (from cosmos):
+ * 1. Create ref for Viewer component
+ * 2. On mount: register viewer in store, apply initial camera, attach listeners
+ * 3. On config changes: apply imperatively (don't re-create viewer)
+ * 4. On unmount: cleanup listeners, null viewer ref
+ *
+ * **Critical**: Mount viewer ONCE. Never re-create on config changes.
+ * Updates applied via imperative API (viewer.camera.setView) not React re-renders.
+ *
+ * **Granular Selectors**: Only select specific state to prevent unnecessary re-renders.
+ *
+ * @example
+ * ```typescript
+ * <CesiumViewerWrapper />
+ * ```
+ */
+export const CesiumViewerWrapper: React.FC = () => {
+  const viewerRef = useRef<CesiumComponentRef<CesiumViewer>>(null);
+
+  // Granular selectors (prevent re-renders on unrelated state changes)
+  const setViewer = useStoreWithCesium((s) => s.cesium.setViewer);
+  const saveCameraPosition = useStoreWithCesium(
+    (s) => s.cesium.saveCameraPosition,
+  );
+  const cameraConfig = useStoreWithCesium((s) => s.cesium.config.camera);
+  const clockConfig = useStoreWithCesium((s) => s.cesium.config.clock);
+  const sceneMode = useStoreWithCesium((s) => s.cesium.config.sceneMode);
+  const showTimeline = useStoreWithCesium((s) => s.cesium.config.showTimeline);
+  const showAnimation = useStoreWithCesium(
+    (s) => s.cesium.config.showAnimation,
+  );
+  const layers = useStoreWithCesium((s) => s.cesium.config.layers);
+
+  // Mount/unmount lifecycle - runs ONCE
+  useEffect(() => {
+    const viewer = viewerRef.current?.cesiumElement;
+    if (!viewer) return;
+
+    // Register viewer in store
+    setViewer(viewer);
+
+    // Apply initial camera position from config
+    viewer.camera.setView({
+      destination: Cartesian3.fromDegrees(
+        cameraConfig.longitude,
+        cameraConfig.latitude,
+        cameraConfig.height,
+      ),
+      orientation: {
+        heading: cameraConfig.heading,
+        pitch: cameraConfig.pitch,
+        roll: cameraConfig.roll,
+      },
+    });
+
+    // Save camera position when user finishes moving
+    // Only fires on moveEnd (not during drag) to reduce write frequency
+    viewer.camera.moveEnd.addEventListener(saveCameraPosition);
+
+    return () => {
+      // Cleanup on unmount
+      if (viewer && !viewer.isDestroyed()) {
+        viewer.camera.moveEnd.removeEventListener(saveCameraPosition);
+      }
+      setViewer(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps = mount/unmount only
+
+  // Activate bidirectional clock sync
+  useClockSync();
+
+  // Compute clock props from config (memoized to avoid recreation)
+  const clockProps = useMemo(() => {
+    const props: Record<string, any> = {
+      shouldAnimate: clockConfig.shouldAnimate,
+      multiplier: clockConfig.multiplier,
+      clockRange: CLOCK_RANGE_MAP[clockConfig.clockRange],
+    };
+
+    if (clockConfig.startTime) {
+      props.startTime = JulianDate.fromIso8601(clockConfig.startTime);
+    }
+    if (clockConfig.stopTime) {
+      props.stopTime = JulianDate.fromIso8601(clockConfig.stopTime);
+    }
+    if (clockConfig.currentTime) {
+      props.currentTime = JulianDate.fromIso8601(clockConfig.currentTime);
+    }
+
+    return props;
+  }, [clockConfig]);
+
+  return (
+    <Viewer
+      ref={viewerRef}
+      full
+      timeline={showTimeline}
+      animation={showAnimation}
+      sceneMode={SCENE_MODE_MAP[sceneMode]}
+      // Disable default UI elements (can enable via config later)
+      baseLayerPicker={false}
+      geocoder={false}
+      homeButton={false}
+      navigationHelpButton={false}
+      sceneModePicker={false}
+    >
+      {/* Clock configuration */}
+      <Clock {...clockProps} />
+
+      {/* Render configured layers */}
+      {layers.map((layer) => {
+        if (!layer.visible) return null;
+
+        switch (layer.type) {
+          case 'sql-entities':
+            return <CesiumEntityLayer key={layer.id} layerConfig={layer} />;
+
+          // Future layer types: geojson, czml, tileset
+          default:
+            return null;
+        }
+      })}
+    </Viewer>
+  );
+};
