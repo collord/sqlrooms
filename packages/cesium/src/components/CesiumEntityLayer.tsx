@@ -3,9 +3,9 @@
  * Bridges DuckDB data to 3D globe visualization.
  */
 
-import React, {useMemo} from 'react';
+import React from 'react';
 import {Entity, PointGraphics} from 'resium';
-import {Color} from 'cesium';
+import {Color, HeightReference} from 'cesium';
 import {useSql} from '@sqlrooms/duckdb';
 import type {CesiumLayerConfig} from '../cesium-config';
 import {useStoreWithCesium} from '../cesium-slice';
@@ -83,6 +83,7 @@ export const CesiumEntityLayer: React.FC<CesiumEntityLayerProps> = ({
             color={
               entity.color ? Color.fromCssColorString(entity.color) : Color.CYAN
             }
+            heightReference={HeightReference.CLAMP_TO_GROUND}
             outlineColor={Color.WHITE}
             outlineWidth={1}
           />

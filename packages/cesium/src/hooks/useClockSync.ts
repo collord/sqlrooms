@@ -4,8 +4,9 @@
  */
 
 import {useEffect, useRef} from 'react';
-import {JulianDate, ClockRange} from 'cesium';
+import {JulianDate, ClockRange, type Clock, type Viewer} from 'cesium';
 import {useStoreWithCesium} from '../cesium-slice';
+import type {ClockConfig} from '../cesium-config';
 
 // Map config enum strings to Cesium ClockRange constants
 const CLOCK_RANGE_MAP = {
@@ -13,6 +14,28 @@ const CLOCK_RANGE_MAP = {
   CLAMPED: ClockRange.CLAMPED,
   LOOP_STOP: ClockRange.LOOP_STOP,
 } as const;
+
+/**
+ * Imperatively apply clock config to Cesium viewer.
+ * Extracted as a module-level function to avoid React Compiler immutability tracking.
+ */
+function applyClockConfigToViewer(viewer: Viewer, config: ClockConfig): void {
+  const clock = viewer.clock;
+
+  if (config.startTime) {
+    clock.startTime = JulianDate.fromIso8601(config.startTime);
+  }
+  if (config.stopTime) {
+    clock.stopTime = JulianDate.fromIso8601(config.stopTime);
+  }
+  if (config.currentTime) {
+    clock.currentTime = JulianDate.fromIso8601(config.currentTime);
+  }
+
+  clock.multiplier = config.multiplier;
+  clock.shouldAnimate = config.shouldAnimate;
+  clock.clockRange = CLOCK_RANGE_MAP[config.clockRange];
+}
 
 /**
  * Synchronizes Cesium's clock with Zustand state bidirectionally.
@@ -50,8 +73,9 @@ export function useClockSync(): void {
   // Cesium → Store: Throttled clock tick listener
   useEffect(() => {
     if (!viewer) return;
+    const v = viewer;
 
-    const onTick = (clock: any) => {
+    const onTick = (clock: Clock) => {
       const now = Date.now();
       // Throttle to max 2 updates/second (500ms interval)
       if (now - lastSyncRef.current < 500) return;
@@ -61,12 +85,12 @@ export function useClockSync(): void {
       setCurrentTime(JulianDate.toIso8601(clock.currentTime));
     };
 
-    viewer.clock.onTick.addEventListener(onTick);
+    v.clock.onTick.addEventListener(onTick);
 
     return () => {
       // Guard against destroyed viewer on unmount
-      if (!viewer.isDestroyed()) {
-        viewer.clock.onTick.removeEventListener(onTick);
+      if (!v.isDestroyed()) {
+        v.clock.onTick.removeEventListener(onTick);
       }
     };
   }, [viewer, setCurrentTime]);
@@ -74,23 +98,6 @@ export function useClockSync(): void {
   // Store → Cesium: Apply config changes to viewer clock
   useEffect(() => {
     if (!viewer) return;
-
-    const clock = viewer.clock;
-
-    // Apply time range if provided
-    if (clockConfig.startTime) {
-      clock.startTime = JulianDate.fromIso8601(clockConfig.startTime);
-    }
-    if (clockConfig.stopTime) {
-      clock.stopTime = JulianDate.fromIso8601(clockConfig.stopTime);
-    }
-    if (clockConfig.currentTime) {
-      clock.currentTime = JulianDate.fromIso8601(clockConfig.currentTime);
-    }
-
-    // Apply playback settings
-    clock.multiplier = clockConfig.multiplier;
-    clock.shouldAnimate = clockConfig.shouldAnimate;
-    clock.clockRange = CLOCK_RANGE_MAP[clockConfig.clockRange];
+    applyClockConfigToViewer(viewer, clockConfig);
   }, [viewer, clockConfig]);
 }

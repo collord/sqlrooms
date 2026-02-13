@@ -45,7 +45,8 @@ const configWithLayers = {
           SELECT
             Latitude AS latitude,
             Longitude AS longitude,
-            Depth * 1000 AS altitude,
+          WHERE Magnitude >= 5.0
+            0 AS altitude,
             DateTime AS timestamp,
             Magnitude AS size,
             'M' || CAST(Magnitude AS VARCHAR) || ' - ' || CAST(DateTime AS VARCHAR) AS label
@@ -64,9 +65,9 @@ const configWithLayers = {
     ],
     // Configure time range for earthquake data
     clock: {
-      startTime: '2024-01-01T00:00:00Z',
-      stopTime: '2024-12-31T23:59:59Z',
-      currentTime: '2024-01-01T00:00:00Z', // MUST set currentTime when using animation widget
+      startTime: '1967-01-01T00:00:00Z',
+      stopTime: '2018-12-31T23:59:59Z',
+      currentTime: '1967-01-01T00:00:00Z', // MUST set currentTime when using animation widget
       multiplier: 86400, // 1 day per second
       shouldAnimate: false,
       clockRange: 'LOOP_STOP',
@@ -91,7 +92,7 @@ export const {roomStore, useRoomStore} = createRoomStore<RoomState>(
           {
             tableName: 'earthquakes',
             type: 'url',
-            url: '/sample-earthquakes.csv',
+            url: 'https://huggingface.co/datasets/sqlrooms/earthquakes/resolve/main/earthquakes.parquet',
           },
         ],
       },
