@@ -11,6 +11,7 @@ import {
 import {produce} from 'immer';
 import type {StateCreator} from 'zustand';
 import type {Viewer as CesiumViewer, Cartographic} from 'cesium';
+import {Math as CesiumMath, Cartesian3} from 'cesium';
 import {
   type CesiumSliceConfig,
   type CameraPosition,
@@ -78,10 +79,6 @@ export function createCesiumSlice(
         const camera = viewer.camera;
         const carto: Cartographic = camera.positionCartographic;
 
-        // Import Cesium Math utilities for degree conversion
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const {Math: CesiumMath} = require('cesium');
-
         set((state) =>
           produce(state, (draft) => {
             draft.cesium.config.camera = {
@@ -100,8 +97,6 @@ export function createCesiumSlice(
         const viewer = get().cesium.viewer;
         if (!viewer) return;
 
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const {Cartesian3} = require('cesium');
         viewer.camera.flyTo({
           destination: Cartesian3.fromDegrees(longitude, latitude, height),
         });

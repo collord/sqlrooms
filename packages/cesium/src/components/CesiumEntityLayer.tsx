@@ -8,6 +8,7 @@ import {Entity, PointGraphics} from 'resium';
 import {Color} from 'cesium';
 import {useSql} from '@sqlrooms/duckdb';
 import type {CesiumLayerConfig} from '../cesium-config';
+import {useStoreWithCesium} from '../cesium-slice';
 import {useSqlToCesiumEntities} from '../hooks/useSqlToCesiumEntities';
 
 export interface CesiumEntityLayerProps {
@@ -44,19 +45,20 @@ export interface CesiumEntityLayerProps {
 export const CesiumEntityLayer: React.FC<CesiumEntityLayerProps> = ({
   layerConfig,
 }) => {
-  const {sqlQuery} = layerConfig;
+  const {sqlQuery, tableName} = layerConfig;
 
-  // Execute SQL query using vega pattern
-  // Note: Query will fail if table doesn't exist yet, but that's expected during data loading
+  // Gate query on table existence (follows deckgl pattern)
+  // Without this, useSql fires immediately and fails with "table not found"
+  // because data sources haven't finished loading into DuckDB yet.
+  // useSql does NOT auto-retry on failure.
+  const table = useStoreWithCesium((s) =>
+    tableName ? s.db.findTableByName(tableName) : true,
+  );
+
   const {data, isLoading, error} = useSql<Record<string, any>>({
     query: sqlQuery ?? '',
-    enabled: Boolean(sqlQuery),
+    enabled: Boolean(sqlQuery) && Boolean(table),
   });
-
-  // Don't log errors during loading - tables may not exist yet
-  if (error && !isLoading) {
-    console.debug(`CesiumEntityLayer[${layerConfig.id}]: Query error (may be temporary during data load):`, error.message);
-  }
 
   // Convert Arrow table rows to entity descriptors
   const entities = useSqlToCesiumEntities(data?.toArray() ?? [], layerConfig);
@@ -78,7 +80,9 @@ export const CesiumEntityLayer: React.FC<CesiumEntityLayerProps> = ({
         >
           <PointGraphics
             pixelSize={entity.size ? entity.size * 2 : 8}
-            color={entity.color ? Color.fromCssColorString(entity.color) : Color.CYAN}
+            color={
+              entity.color ? Color.fromCssColorString(entity.color) : Color.CYAN
+            }
             outlineColor={Color.WHITE}
             outlineWidth={1}
           />

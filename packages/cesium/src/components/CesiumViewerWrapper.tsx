@@ -11,6 +11,7 @@ import {
   JulianDate,
   ClockRange,
   SceneMode,
+  Color,
 } from 'cesium';
 import {useStoreWithCesium} from '../cesium-slice';
 import {CesiumEntityLayer} from './CesiumEntityLayer';
@@ -49,7 +50,7 @@ const SCENE_MODE_MAP = {
  * ```
  */
 export const CesiumViewerWrapper: React.FC = () => {
-  const viewerRef = useRef<CesiumComponentRef<CesiumViewer>>(null);
+  const viewerInstanceRef = useRef<CesiumViewer | null>(null);
 
   // Granular selectors (prevent re-renders on unrelated state changes)
   const setViewer = useStoreWithCesium((s) => s.cesium.setViewer);
@@ -65,10 +66,22 @@ export const CesiumViewerWrapper: React.FC = () => {
   );
   const layers = useStoreWithCesium((s) => s.cesium.config.layers);
 
-  // Mount/unmount lifecycle - runs ONCE
-  useEffect(() => {
-    const viewer = viewerRef.current?.cesiumElement;
+  // Callback ref to capture viewer when Resium creates it
+  const handleViewerRef = (
+    resiumRef: CesiumComponentRef<CesiumViewer> | null,
+  ) => {
+    if (!resiumRef) return;
+
+    const viewer = resiumRef.cesiumElement;
     if (!viewer) return;
+
+    // Avoid re-initializing if already set
+    if (viewerInstanceRef.current === viewer) return;
+
+    viewerInstanceRef.current = viewer;
+
+    // Set dark background for space behind the globe
+    viewer.scene.backgroundColor = Color.fromCssColorString('#0a0a14');
 
     // Register viewer in store
     setViewer(viewer);
@@ -90,16 +103,20 @@ export const CesiumViewerWrapper: React.FC = () => {
     // Save camera position when user finishes moving
     // Only fires on moveEnd (not during drag) to reduce write frequency
     viewer.camera.moveEnd.addEventListener(saveCameraPosition);
+  };
 
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      // Cleanup on unmount
+      const viewer = viewerInstanceRef.current;
       if (viewer && !viewer.isDestroyed()) {
         viewer.camera.moveEnd.removeEventListener(saveCameraPosition);
       }
       setViewer(null);
+      viewerInstanceRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps = mount/unmount only
+  }, []); // Empty deps = unmount only
 
   // Activate bidirectional clock sync
   useClockSync();
@@ -127,7 +144,7 @@ export const CesiumViewerWrapper: React.FC = () => {
 
   return (
     <Viewer
-      ref={viewerRef}
+      ref={handleViewerRef}
       full
       timeline={showTimeline}
       animation={showAnimation}

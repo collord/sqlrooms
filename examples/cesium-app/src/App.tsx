@@ -3,17 +3,13 @@
  */
 
 import React from 'react';
-import {RoomShell} from '@sqlrooms/room-shell';
 import {ThemeProvider} from '@sqlrooms/ui';
-import {roomStore} from './store';
+import {Room} from './Room';
 
 export const App: React.FC = () => {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="cesium-app-theme">
-      <RoomShell className="h-screen" roomStore={roomStore}>
-        <RoomShell.LayoutComposer />
-        <RoomShell.LoadingProgress />
-      </RoomShell>
+      <Room />
     </ThemeProvider>
   );
 };

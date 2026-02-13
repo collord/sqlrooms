@@ -45,7 +45,9 @@ export const ClockConfig = z.object({
   /** Whether animation should be playing */
   shouldAnimate: z.boolean().default(false),
   /** Clock behavior at end of range */
-  clockRange: z.enum(['UNBOUNDED', 'CLAMPED', 'LOOP_STOP']).default('LOOP_STOP'),
+  clockRange: z
+    .enum(['UNBOUNDED', 'CLAMPED', 'LOOP_STOP'])
+    .default('LOOP_STOP'),
 });
 
 export type ClockConfig = z.infer<typeof ClockConfig>;
@@ -86,6 +88,8 @@ export const CesiumLayerConfig = z.object({
   visible: z.boolean().default(true),
   /** SQL query for sql-entities type (results become entities) */
   sqlQuery: z.string().optional(),
+  /** DuckDB table name queried by this layer (used to gate query on table existence) */
+  tableName: z.string().optional(),
   /** Column mappings for sql-entities layers */
   columnMapping: ColumnMapping.optional(),
   /** URL for geojson/czml data sources or inline data reference */
@@ -111,7 +115,9 @@ export const CesiumSliceConfig = z.object({
     /** Enable global terrain (requires Cesium Ion) */
     terrain: z.boolean().default(true),
     /** Scene viewing mode */
-    sceneMode: z.enum(['SCENE3D', 'SCENE2D', 'COLUMBUS_VIEW']).default('SCENE3D'),
+    sceneMode: z
+      .enum(['SCENE3D', 'SCENE2D', 'COLUMBUS_VIEW'])
+      .default('SCENE3D'),
     /** Show timeline widget at bottom */
     showTimeline: z.boolean().default(true),
     /** Show animation widget (play/pause controls) */
