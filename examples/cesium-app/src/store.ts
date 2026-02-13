@@ -46,7 +46,7 @@ const configWithLayers = {
             Latitude AS latitude,
             Longitude AS longitude,
             0 AS altitude,
-            DateTime AS timestamp,
+            strftime(DateTime, '%Y-%m-%dT%H:%M:%SZ') AS timestamp,
             Magnitude AS size,
             'M' || CAST(Magnitude AS VARCHAR) || ' - ' || CAST(DateTime AS VARCHAR) AS label
           FROM earthquakes
@@ -63,18 +63,12 @@ const configWithLayers = {
         },
       },
     ],
-    // Configure time range for earthquake data
+    // Clock time range is auto-derived from data (see CesiumEntityLayer)
     clock: {
-      startTime: '1967-01-01T00:00:00Z',
-      stopTime: '2018-12-31T23:59:59Z',
-      currentTime: '1967-01-01T00:00:00Z', // MUST set currentTime when using animation widget
       multiplier: 86400, // 1 day per second
       shouldAnimate: false,
       clockRange: 'LOOP_STOP',
     },
-    // Disable animation widget until clock is properly configured
-    showAnimation: false,
-    showTimeline: false,
   },
 };
 

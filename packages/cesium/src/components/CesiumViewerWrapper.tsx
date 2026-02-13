@@ -3,13 +3,11 @@
  * Core component that manages the Cesium viewer instance.
  */
 
-import React, {useRef, useEffect, useMemo} from 'react';
-import {Viewer, Clock, CesiumComponentRef} from 'resium';
+import React, {useRef, useEffect} from 'react';
+import {Viewer, CesiumComponentRef} from 'resium';
 import {
   Viewer as CesiumViewer,
   Cartesian3,
-  JulianDate,
-  ClockRange,
   SceneMode,
   Color,
   Ion,
@@ -17,6 +15,8 @@ import {
   EllipsoidTerrainProvider,
   OpenStreetMapImageryProvider,
 } from 'cesium';
+// Note: Clock is managed entirely by useClockSync hook (imperative API).
+// Using Resium's <Clock> component caused conflicts with imperative updates.
 import {useStoreWithCesium} from '../cesium-slice';
 import {CesiumEntityLayer} from './CesiumEntityLayer';
 import {useClockSync} from '../hooks/useClockSync';
@@ -60,13 +60,6 @@ function setupTerrainAndImagery(
   // 'none' would leave whatever default is configured
 }
 
-// Map config enum strings to Cesium constants
-const CLOCK_RANGE_MAP = {
-  UNBOUNDED: ClockRange.UNBOUNDED,
-  CLAMPED: ClockRange.CLAMPED,
-  LOOP_STOP: ClockRange.LOOP_STOP,
-} as const;
-
 const SCENE_MODE_MAP = {
   SCENE3D: SceneMode.SCENE3D,
   SCENE2D: SceneMode.SCENE2D,
@@ -101,7 +94,6 @@ export const CesiumViewerWrapper: React.FC = () => {
     (s) => s.cesium.saveCameraPosition,
   );
   const cameraConfig = useStoreWithCesium((s) => s.cesium.config.camera);
-  const clockConfig = useStoreWithCesium((s) => s.cesium.config.clock);
   const sceneMode = useStoreWithCesium((s) => s.cesium.config.sceneMode);
   const showTimeline = useStoreWithCesium((s) => s.cesium.config.showTimeline);
   const showAnimation = useStoreWithCesium(
@@ -168,29 +160,8 @@ export const CesiumViewerWrapper: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps = unmount only
 
-  // Activate bidirectional clock sync
+  // Activate bidirectional clock sync (sole clock manager — no <Clock> component)
   useClockSync();
-
-  // Compute clock props from config (memoized to avoid recreation)
-  const clockProps = useMemo(() => {
-    const props: Record<string, any> = {
-      shouldAnimate: clockConfig.shouldAnimate,
-      multiplier: clockConfig.multiplier,
-      clockRange: CLOCK_RANGE_MAP[clockConfig.clockRange],
-    };
-
-    if (clockConfig.startTime) {
-      props.startTime = JulianDate.fromIso8601(clockConfig.startTime);
-    }
-    if (clockConfig.stopTime) {
-      props.stopTime = JulianDate.fromIso8601(clockConfig.stopTime);
-    }
-    if (clockConfig.currentTime) {
-      props.currentTime = JulianDate.fromIso8601(clockConfig.currentTime);
-    }
-
-    return props;
-  }, [clockConfig]);
 
   return (
     <Viewer
@@ -206,9 +177,6 @@ export const CesiumViewerWrapper: React.FC = () => {
       navigationHelpButton={false}
       sceneModePicker={false}
     >
-      {/* Clock configuration */}
-      <Clock {...clockProps} />
-
       {/* Render configured layers */}
       {layers.map((layer) => {
         if (!layer.visible) return null;

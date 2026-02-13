@@ -7,6 +7,7 @@ import {useEffect, useRef} from 'react';
 import {JulianDate, ClockRange, type Clock, type Viewer} from 'cesium';
 import {useStoreWithCesium} from '../cesium-slice';
 import type {ClockConfig} from '../cesium-config';
+import {toIso8601} from '../utils';
 
 // Map config enum strings to Cesium ClockRange constants
 const CLOCK_RANGE_MAP = {
@@ -23,13 +24,25 @@ function applyClockConfigToViewer(viewer: Viewer, config: ClockConfig): void {
   const clock = viewer.clock;
 
   if (config.startTime) {
-    clock.startTime = JulianDate.fromIso8601(config.startTime);
+    try {
+      clock.startTime = JulianDate.fromIso8601(toIso8601(config.startTime));
+    } catch {
+      /* skip invalid date */
+    }
   }
   if (config.stopTime) {
-    clock.stopTime = JulianDate.fromIso8601(config.stopTime);
+    try {
+      clock.stopTime = JulianDate.fromIso8601(toIso8601(config.stopTime));
+    } catch {
+      /* skip invalid date */
+    }
   }
   if (config.currentTime) {
-    clock.currentTime = JulianDate.fromIso8601(config.currentTime);
+    try {
+      clock.currentTime = JulianDate.fromIso8601(toIso8601(config.currentTime));
+    } catch {
+      /* skip invalid date */
+    }
   }
 
   clock.multiplier = config.multiplier;
@@ -100,4 +113,19 @@ export function useClockSync(): void {
     if (!viewer) return;
     applyClockConfigToViewer(viewer, clockConfig);
   }, [viewer, clockConfig]);
+
+  // Timeline zoom: only update when startTime/stopTime change (not on every currentTime tick)
+  const startTime = useStoreWithCesium((s) => s.cesium.config.clock.startTime);
+  const stopTime = useStoreWithCesium((s) => s.cesium.config.clock.stopTime);
+
+  useEffect(() => {
+    if (!viewer || !startTime || !stopTime || !viewer.timeline) return;
+    try {
+      const startJd = JulianDate.fromIso8601(toIso8601(startTime));
+      const stopJd = JulianDate.fromIso8601(toIso8601(stopTime));
+      viewer.timeline.zoomTo(startJd, stopJd);
+    } catch {
+      /* skip invalid dates */
+    }
+  }, [viewer, startTime, stopTime]);
 }

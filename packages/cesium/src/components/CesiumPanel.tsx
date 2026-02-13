@@ -6,6 +6,7 @@
 import React from 'react';
 import {CesiumViewerWrapper} from './CesiumViewerWrapper';
 import {CesiumToolbar} from './CesiumToolbar';
+import {CesiumClock} from './CesiumClock';
 
 /**
  * Top-level panel component registered with SQLRooms layout.
@@ -37,7 +38,8 @@ export const CesiumPanel: React.FC = () => {
       <CesiumViewerWrapper />
 
       {/* Control overlays positioned absolutely */}
-      <CesiumToolbar className="absolute right-2 top-2 z-10" />
+      <CesiumToolbar className="absolute top-2 right-2 z-10" />
+      <CesiumClock className="absolute bottom-4 left-4 z-10" />
     </div>
   );
 };
