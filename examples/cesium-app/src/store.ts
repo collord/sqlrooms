@@ -45,12 +45,12 @@ const configWithLayers = {
           SELECT
             Latitude AS latitude,
             Longitude AS longitude,
-          WHERE Magnitude >= 5.0
             0 AS altitude,
             DateTime AS timestamp,
             Magnitude AS size,
             'M' || CAST(Magnitude AS VARCHAR) || ' - ' || CAST(DateTime AS VARCHAR) AS label
           FROM earthquakes
+          WHERE Magnitude >= 5.0
           ORDER BY DateTime
         `,
         columnMapping: {
